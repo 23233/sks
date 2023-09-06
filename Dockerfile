@@ -1,5 +1,6 @@
 FROM golang:alpine as build
 
+ARG APP_DIR=control
 # 容器环境变量添加，会覆盖默认的变量值
 ENV GO111MODULE=on
 
@@ -13,7 +14,7 @@ ENV TZ=Asia/Shanghai
 WORKDIR /go/release
 
 # 再把全部文件添加到/go/release目录 这样就可以缓存go mod download
-COPY control .
+COPY ${APP_DIR} .
 COPY go.mod .
 
 RUN go mod download
