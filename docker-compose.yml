@@ -1,0 +1,20 @@
+version: '3.5'
+
+services:
+  api:
+    image: "23233/sk5_control"
+    restart: always
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - "3434:3434"
+    volumes:
+      - ./save:/code/save
+      - ./docker_data/:/code/logs
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
