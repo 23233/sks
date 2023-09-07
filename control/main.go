@@ -300,6 +300,9 @@ func main() {
 			sendSocks5Error(clientConn, 0x01) // 0x01 表示一般SOCKS服务器连接失败
 			return
 		}
+
+		logger.J.Infof("选中的代理是 %s:%s", nextProxy.IP, nextProxy.Port)
+
 		socks5Addr := net.JoinHostPort(nextProxy.IP, nextProxy.Port)
 
 		// 设置SOCKS5代理
@@ -313,21 +316,47 @@ func main() {
 			return
 		}
 
-		// 从客户端读取SOCKS5握手信息以获取目标地址和端口
+		// 读取前5个字节以确定地址类型和域名长度
 		buffer := make([]byte, 256)
-		_, err = io.ReadFull(clientConn, buffer[:8])
+		_, err = io.ReadFull(clientConn, buffer[:5])
 		if err != nil {
 			logger.J.ErrorE(err, "Error reading SOCKS5 request")
 			return
 		}
 
-		targetAddr := net.IP(buffer[4:8]).String()
-		targetPort := binary.BigEndian.Uint16(buffer[8:10])
+		addrType := buffer[3]
+		var targetAddr string
+		var targetPort uint16
 
-		// 连接到目标地址和端口（这里仅作示例）
-		targetConn, err := dialer.Dial("tcp", net.JoinHostPort(targetAddr, fmt.Sprintf("%d", targetPort)))
+		if addrType == 0x03 { // 域名
+			domainLen := buffer[4]
+			// 读取域名和端口
+			_, err = io.ReadFull(clientConn, buffer[:int(domainLen)+2])
+			if err != nil {
+				logger.J.ErrorE(err, "Error reading domain and port")
+				return
+			}
+			targetAddr = string(buffer[:domainLen])
+			targetPort = binary.BigEndian.Uint16(buffer[domainLen : domainLen+2])
+		} else if addrType == 0x01 { // IPv4
+			_, err = io.ReadFull(clientConn, buffer[:5]) // IPv4地址 + 端口
+			if err != nil {
+				logger.J.ErrorE(err, "Error reading IPv4 and port")
+				return
+			}
+			targetAddr = net.IP(buffer[:4]).String()
+			targetPort = binary.BigEndian.Uint16(buffer[4:6])
+		} else {
+			logger.J.ErrorE(err, "Unsupported address type")
+			return
+		}
+
+		targetPortStr := fmt.Sprintf("%d", targetPort)
+		logger.J.Infof("有代理请求来 目标地址:%s 目标端口:%s", targetAddr, targetPortStr)
+
+		targetConn, err := dialer.Dial("tcp", net.JoinHostPort(targetAddr, targetPortStr))
 		if err != nil {
-			logger.J.ErrorE(err, "Error connecting to targer")
+			logger.J.ErrorE(err, "Error connecting to target")
 			return
 		}
 		defer targetConn.Close()
