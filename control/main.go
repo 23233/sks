@@ -255,7 +255,7 @@ func main() {
 						Pass: pass,
 					}
 					clientManager.AddClient(conn.Conn, clientInfo)
-					logger.J.Infof("[%s] 连接上服务器", ip)
+					logger.J.Infof("[%s] 连接上服务器 port:%s un:%s ps:%s", ip, port, user, pass)
 					return nil
 				},
 				"keeplive": func(conn *neffos.NSConn, message neffos.Message) error {
