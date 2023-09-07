@@ -54,6 +54,11 @@ type ClientManager struct {
 func (cm *ClientManager) AddClient(conn *neffos.Conn, info *ClientInfo) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
+	for k, cl := range cm.clients {
+		if info.IP == cl.IP {
+			delete(cm.clients, k)
+		}
+	}
 	cm.clients[conn] = info
 }
 func (cm *ClientManager) DelClient(conn *neffos.Conn) {
