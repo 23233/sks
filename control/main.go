@@ -1,11 +1,12 @@
 package main
 
 import (
-	"encoding/binary"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/23233/ggg/logger"
 	"github.com/23233/ggg/ut"
+	"github.com/armon/go-socks5"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/websocket"
 	"github.com/kataras/neffos"
@@ -125,105 +126,10 @@ func (cm *ClientManager) GetNextClientWithLock() *ClientInfo {
 	return nil
 }
 
-func authenticateClient(clientConn net.Conn) bool {
-	// 读取客户端的身份验证请求
-	buffer := make([]byte, 512)
+type SimpleCredentialStore struct{}
 
-	// 读取版本和支持的方法数量
-	_, err := io.ReadFull(clientConn, buffer[:2])
-	if err != nil {
-		log.Println("Error reading version and nmethods:", err)
-		return false
-	}
-
-	version := buffer[0]
-	nmethods := buffer[1]
-
-	if version != 0x05 {
-		log.Println("Unsupported SOCKS version")
-		return false
-	}
-
-	// 读取客户端支持的方法
-	_, err = io.ReadFull(clientConn, buffer[:nmethods])
-	if err != nil {
-		log.Println("Error reading methods:", err)
-		return false
-	}
-
-	// 检查是否支持用户名/密码身份验证（0x02）
-	supportsUserPassAuth := false
-	for _, method := range buffer[:nmethods] {
-		if method == 0x02 {
-			supportsUserPassAuth = true
-			break
-		}
-	}
-
-	if !supportsUserPassAuth {
-		log.Println("Client does not support username/password authentication")
-		return false
-	}
-
-	// 发送身份验证方法响应
-	_, err = clientConn.Write([]byte{0x05, 0x02})
-	if err != nil {
-		log.Println("Error sending authentication method response:", err)
-		return false
-	}
-
-	// 读取用户名和密码
-	_, err = io.ReadFull(clientConn, buffer[:2])
-	if err != nil {
-		log.Println("Error reading username/password version and length:", err)
-		return false
-	}
-
-	ulen := buffer[1]
-	_, err = io.ReadFull(clientConn, buffer[:ulen])
-	if err != nil {
-		log.Println("Error reading username:", err)
-		return false
-	}
-	username := string(buffer[:ulen])
-
-	_, err = io.ReadFull(clientConn, buffer[:1])
-	if err != nil {
-		log.Println("Error reading password length:", err)
-		return false
-	}
-
-	plen := buffer[0]
-	_, err = io.ReadFull(clientConn, buffer[:plen])
-	if err != nil {
-		log.Println("Error reading password:", err)
-		return false
-	}
-	password := string(buffer[:plen])
-
-	// 检查用户名和密码
-	if username == "aaa" && password == "123" {
-		// 发送身份验证成功响应
-		_, err = clientConn.Write([]byte{0x01, 0x00})
-		if err != nil {
-			log.Println("Error sending authentication success response:", err)
-		}
-		return true
-	}
-
-	// 发送身份验证失败响应
-	_, err = clientConn.Write([]byte{0x01, 0x01})
-	if err != nil {
-		log.Println("Error sending authentication failure response:", err)
-	}
-	return false
-}
-
-func sendSocks5Error(conn net.Conn, errorCode byte) {
-	_, err := conn.Write([]byte{0x05, errorCode, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
-	if err != nil {
-		logger.J.ErrorE(err, "Failed to send SOCKS5 error response")
-	}
+func (s SimpleCredentialStore) Valid(user, password string) bool {
+	return user == "aaa" && password == "123"
 }
 
 func main() {
@@ -293,26 +199,16 @@ func main() {
 	})
 	logger.J.Infof("公网ip:%s", publicIp)
 
-	listener, err := net.Listen("tcp", ":3535")
-	if err != nil {
-		log.Fatal("Error starting server:", err)
-	}
-	defer listener.Close()
+	logger.J.Infof("开启socket5代理: curl -v -x socks5://aaa:123@%s:3535 http://api.ipify.org", publicIp)
 
-	var handleClient = func(clientConn net.Conn) {
-		defer clientConn.Close()
-
-		if !authenticateClient(clientConn) {
-			logger.J.Errorf("Authentication failed")
-			return
-		}
-
-		// 从SOCKS5代理列表中获取一个代理
-		nextProxy := clientManager.GetNextClient()
+	// 创建一个自定义Dial函数，用于连接到另一个SOCKS5代理
+	dial := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		//从SOCKS5代理列表中获取一个代理
+		nextProxy := new(ClientInfo)
+		nextProxy = clientManager.GetNextClient()
 		if nextProxy == nil {
 			logger.J.Errorf("未获取到任何一个有效的代理")
-			sendSocks5Error(clientConn, 0x01) // 0x01 表示一般SOCKS服务器连接失败
-			return
+			return nil, errors.New("未找到有效的代理")
 		}
 
 		logger.J.Infof("选中的代理是 %s:%s", nextProxy.IP, nextProxy.Port)
@@ -321,70 +217,28 @@ func main() {
 		dialer, err := nextProxy.CreateDialer()
 		if err != nil {
 			logger.J.ErrorE(err, "创建代理的socket5连接失败")
-			// 发送SOCKS5错误响应
-			sendSocks5Error(clientConn, 0x01)
-			return
+			return nil, err
 		}
 
-		// 读取前5个字节以确定地址类型和域名长度
-		buffer := make([]byte, 256)
-		_, err = io.ReadFull(clientConn, buffer[:5])
-		if err != nil {
-			logger.J.ErrorE(err, "Error reading SOCKS5 request")
-			return
-		}
+		return dialer.Dial(network, addr)
+	}
 
-		addrType := buffer[3]
-		var targetAddr string
-		var targetPort uint16
+	// 创建一个SOCKS5服务器配置
+	conf := &socks5.Config{
+		Dial:        dial,
+		Credentials: SimpleCredentialStore{},
+	}
 
-		if addrType == 0x03 { // 域名
-			domainLen := buffer[4]
-			// 读取域名和端口
-			_, err = io.ReadFull(clientConn, buffer[:int(domainLen)+2])
-			if err != nil {
-				logger.J.ErrorE(err, "Error reading domain and port")
-				return
-			}
-			targetAddr = string(buffer[:domainLen])
-			targetPort = binary.BigEndian.Uint16(buffer[domainLen : domainLen+2])
-		} else if addrType == 0x01 { // IPv4
-			_, err = io.ReadFull(clientConn, buffer[:5]) // IPv4地址 + 端口
-			if err != nil {
-				logger.J.ErrorE(err, "Error reading IPv4 and port")
-				return
-			}
-			targetAddr = net.IP(buffer[:4]).String()
-			targetPort = binary.BigEndian.Uint16(buffer[4:6])
-		} else {
-			logger.J.ErrorE(err, "Unsupported address type")
-			return
-		}
-
-		targetPortStr := fmt.Sprintf("%d", targetPort)
-		logger.J.Infof("有代理请求来 目标地址:%s 目标端口:%s", targetAddr, targetPortStr)
-
-		targetConn, err := dialer.Dial("tcp", net.JoinHostPort(targetAddr, targetPortStr))
-		if err != nil {
-			logger.J.ErrorE(err, "Error connecting to target")
-			return
-		}
-		defer targetConn.Close()
-
-		// 创建两个goroutine来处理数据转发
-		go io.Copy(targetConn, clientConn)
-		go io.Copy(clientConn, targetConn)
+	// 创建一个SOCKS5代理服务器
+	sks, err := socks5.New(conf)
+	if err != nil {
+		log.Fatalf("Failed to create SOCKS5 server: %v", err)
 	}
 
 	go func() {
-		logger.J.Infof("开启socket5代理: curl -v -x socks5://aaa:123@%s:3535 http://api.ipify.org", publicIp)
-		for {
-			clientConn, err := listener.Accept()
-			if err != nil {
-				logger.J.ErrorE(err, "Error accepting connection")
-				continue
-			}
-			go handleClient(clientConn)
+		// 监听并提供SOCKS5代理服务
+		if err := sks.ListenAndServe("tcp", "0.0.0.0:3535"); err != nil {
+			log.Fatalf("Failed to start SOCKS5 server: %v", err)
 		}
 	}()
 

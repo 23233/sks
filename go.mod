@@ -3,8 +3,16 @@ module sck
 go 1.20
 
 require (
-	github.com/23233/ggg/logger v0.0.0-20230830035738-343b5b2acbcf // indirect
-	github.com/23233/ggg/ut v0.0.0-20230830035738-343b5b2acbcf // indirect
+	github.com/23233/ggg/logger v0.0.0-20230830035738-343b5b2acbcf
+	github.com/23233/ggg/ut v0.0.0-20230830035738-343b5b2acbcf
+	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
+	github.com/kataras/iris/v12 v12.2.5
+	github.com/kataras/neffos v0.0.22
+	github.com/txthinking/socks5 v0.0.0-20230325130024-4230056ae301
+	golang.org/x/net v0.15.0
+)
+
+require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
 	github.com/CloudyKit/jet/v6 v6.2.0 // indirect
@@ -33,8 +41,6 @@ require (
 	github.com/jxskiss/base62 v1.1.0 // indirect
 	github.com/kataras/blocks v0.0.7 // indirect
 	github.com/kataras/golog v0.1.9 // indirect
-	github.com/kataras/iris/v12 v12.2.5 // indirect
-	github.com/kataras/neffos v0.0.22 // indirect
 	github.com/kataras/pio v0.0.12 // indirect
 	github.com/kataras/sitemap v0.0.6 // indirect
 	github.com/kataras/tunnel v0.0.4 // indirect
@@ -58,7 +64,6 @@ require (
 	github.com/tdewolff/minify/v2 v2.12.8 // indirect
 	github.com/tdewolff/parse/v2 v2.6.7 // indirect
 	github.com/txthinking/runnergroup v0.0.0-20210608031112-152c7c4432bf // indirect
-	github.com/txthinking/socks5 v0.0.0-20230325130024-4230056ae301 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
@@ -71,11 +76,10 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
