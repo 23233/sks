@@ -340,7 +340,7 @@ func main() {
 	}
 
 	go func() {
-		logger.J.Infof("开启socket5代理: curl -x socks5://aaa:123@%s:3535 http://api.ipify.org", publicIp)
+		logger.J.Infof("开启socket5代理: curl -v -x socks5://aaa:123@%s:3535 http://api.ipify.org", publicIp)
 		for {
 			clientConn, err := listener.Accept()
 			if err != nil {

@@ -40,7 +40,7 @@ func main() {
 	username := ut.RandomStr(6)
 	password := ut.RandomStr(6)
 	logger.J.Infof("连接:%s 公网ip:%s ss_name:%s ss_password:%s", remoteAddr, publicIP, username, password)
-	println(fmt.Sprintf("测试是否生效 curl -x socks5://%s:%s@%s:3232 http://api.ipify.org", username, password, publicIP))
+	println(fmt.Sprintf("测试是否生效 curl -v -x socks5://%s:%s@%s:3232 http://api.ipify.org", username, password, publicIP))
 
 	// 创建 Socks5 代理服务器
 	socks5Server, err := socks5.NewClassicServer("0.0.0.0:3232", publicIP, username, password, 60, 60)
