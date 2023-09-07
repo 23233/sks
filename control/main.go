@@ -111,6 +111,107 @@ func (cm *ClientManager) GetNextClientWithLock() *ClientInfo {
 	return nil
 }
 
+func authenticateClient(clientConn net.Conn) bool {
+	// 读取客户端的身份验证请求
+	buffer := make([]byte, 512)
+
+	// 读取版本和支持的方法数量
+	_, err := io.ReadFull(clientConn, buffer[:2])
+	if err != nil {
+		log.Println("Error reading version and nmethods:", err)
+		return false
+	}
+
+	version := buffer[0]
+	nmethods := buffer[1]
+
+	if version != 0x05 {
+		log.Println("Unsupported SOCKS version")
+		return false
+	}
+
+	// 读取客户端支持的方法
+	_, err = io.ReadFull(clientConn, buffer[:nmethods])
+	if err != nil {
+		log.Println("Error reading methods:", err)
+		return false
+	}
+
+	// 检查是否支持用户名/密码身份验证（0x02）
+	supportsUserPassAuth := false
+	for _, method := range buffer[:nmethods] {
+		if method == 0x02 {
+			supportsUserPassAuth = true
+			break
+		}
+	}
+
+	if !supportsUserPassAuth {
+		log.Println("Client does not support username/password authentication")
+		return false
+	}
+
+	// 发送身份验证方法响应
+	_, err = clientConn.Write([]byte{0x05, 0x02})
+	if err != nil {
+		log.Println("Error sending authentication method response:", err)
+		return false
+	}
+
+	// 读取用户名和密码
+	_, err = io.ReadFull(clientConn, buffer[:2])
+	if err != nil {
+		log.Println("Error reading username/password version and length:", err)
+		return false
+	}
+
+	ulen := buffer[1]
+	_, err = io.ReadFull(clientConn, buffer[:ulen])
+	if err != nil {
+		log.Println("Error reading username:", err)
+		return false
+	}
+	username := string(buffer[:ulen])
+
+	_, err = io.ReadFull(clientConn, buffer[:1])
+	if err != nil {
+		log.Println("Error reading password length:", err)
+		return false
+	}
+
+	plen := buffer[0]
+	_, err = io.ReadFull(clientConn, buffer[:plen])
+	if err != nil {
+		log.Println("Error reading password:", err)
+		return false
+	}
+	password := string(buffer[:plen])
+
+	// 检查用户名和密码
+	if username == "aaa" && password == "123" {
+		// 发送身份验证成功响应
+		_, err = clientConn.Write([]byte{0x01, 0x00})
+		if err != nil {
+			log.Println("Error sending authentication success response:", err)
+		}
+		return true
+	}
+
+	// 发送身份验证失败响应
+	_, err = clientConn.Write([]byte{0x01, 0x01})
+	if err != nil {
+		log.Println("Error sending authentication failure response:", err)
+	}
+	return false
+}
+
+func sendSocks5Error(conn net.Conn, errorCode byte) {
+	_, err := conn.Write([]byte{0x05, errorCode, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+	if err != nil {
+		logger.J.ErrorE(err, "Failed to send SOCKS5 error response")
+	}
+}
+
 func main() {
 	publicIp, _ := getPublicIP()
 	app := iris.Default()
@@ -187,10 +288,16 @@ func main() {
 	var handleClient = func(clientConn net.Conn) {
 		defer clientConn.Close()
 
+		if !authenticateClient(clientConn) {
+			logger.J.Errorf("Authentication failed")
+			return
+		}
+
 		// 从SOCKS5代理列表中获取一个代理
 		nextProxy := clientManager.GetNextClient()
 		if nextProxy == nil {
 			logger.J.Errorf("未获取到任何一个有效的代理")
+			sendSocks5Error(clientConn, 0x01) // 0x01 表示一般SOCKS服务器连接失败
 			return
 		}
 		socks5Addr := net.JoinHostPort(nextProxy.IP, nextProxy.Port)
@@ -233,6 +340,7 @@ func main() {
 	}
 
 	go func() {
+		logger.J.Infof("开启socket5代理: curl -x socks5://aaa:123@%s:3535 http://api.ipify.org", publicIp)
 		for {
 			clientConn, err := listener.Accept()
 			if err != nil {

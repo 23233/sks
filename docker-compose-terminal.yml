@@ -2,14 +2,13 @@ version: '3.5'
 
 services:
   api:
-    image: "23233/sk5_control"
+    image: "23233/sk5_terminal"
     restart: always
     environment:
       - TZ=Asia/Shanghai
-#      - LOCK_DURATION_MS=1000
+      - REMOTE_ADDR=127.0.0.1
     ports:
-      - "3434:3434"
-      - "3535:3535"
+      - "3232:3232"
     volumes:
       - ./save:/code/save
       - ./docker_data/:/code/logs
