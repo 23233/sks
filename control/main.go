@@ -237,7 +237,7 @@ func main() {
 
 	go func() {
 		// 监听并提供SOCKS5代理服务
-		if err := sks.ListenAndServe("tcp", "0.0.0.0:3535"); err != nil {
+		if err := sks.ListenAndServe("tcp", ":3535"); err != nil {
 			log.Fatalf("Failed to start SOCKS5 server: %v", err)
 		}
 	}()
