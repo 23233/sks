@@ -45,6 +45,14 @@ type ClientInfo struct {
 	LockExp time.Time
 }
 
+func (cl *ClientInfo) CreateDialer() (proxy.Dialer, error) {
+	auth := &proxy.Auth{
+		User:     cl.User,
+		Password: cl.Pass,
+	}
+	return proxy.SOCKS5("tcp", net.JoinHostPort(cl.IP, cl.Port), auth, proxy.Direct)
+}
+
 type ClientManager struct {
 	clients  map[*neffos.Conn]*ClientInfo
 	mu       sync.Mutex
@@ -95,6 +103,7 @@ func (cm *ClientManager) GetNextClient() *ClientInfo {
 	cm.clientID++
 	return client
 }
+
 func (cm *ClientManager) GetNextClientWithLock() *ClientInfo {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -308,16 +317,12 @@ func main() {
 
 		logger.J.Infof("选中的代理是 %s:%s", nextProxy.IP, nextProxy.Port)
 
-		socks5Addr := net.JoinHostPort(nextProxy.IP, nextProxy.Port)
-
-		// 设置SOCKS5代理
-		auth := &proxy.Auth{
-			User:     nextProxy.User,
-			Password: nextProxy.Pass,
-		}
-		dialer, err := proxy.SOCKS5("tcp", socks5Addr, auth, proxy.Direct)
+		// 创建到该SOCKS5代理的Dialer
+		dialer, err := nextProxy.CreateDialer()
 		if err != nil {
-			logger.J.ErrorE(err, "Error creating dialer")
+			logger.J.ErrorE(err, "创建代理的socket5连接失败")
+			// 发送SOCKS5错误响应
+			sendSocks5Error(clientConn, 0x01)
 			return
 		}
 
@@ -366,11 +371,9 @@ func main() {
 		}
 		defer targetConn.Close()
 
-		// 创建双向数据传输
-		go func() {
-			io.Copy(targetConn, clientConn)
-		}()
-		io.Copy(clientConn, targetConn)
+		// 创建两个goroutine来处理数据转发
+		go io.Copy(targetConn, clientConn)
+		go io.Copy(clientConn, targetConn)
 	}
 
 	go func() {
