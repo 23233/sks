@@ -126,6 +126,18 @@ func (cm *ClientManager) GetNextClientWithLock() *ClientInfo {
 	return nil
 }
 
+func (cm *ClientManager) GetAllIp() []string {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	var ips = make([]string, 0, len(cm.clients))
+
+	for _, client := range cm.clients {
+		ips = append(ips, client.IP)
+	}
+	return ips
+}
+
 type SimpleCredentialStore struct{}
 
 func (s SimpleCredentialStore) Valid(user, password string) bool {
@@ -196,6 +208,12 @@ func main() {
 			return
 		}
 		_, _ = ctx.Text(fmt.Sprintf("socks5://%s:%s@%s:%s", client.User, client.Pass, client.IP, client.Port))
+	})
+	app.Get("/clients", func(ctx iris.Context) {
+		_ = ctx.JSON(iris.Map{
+			"count": len(clientManager.clients),
+			"ips":   clientManager.GetAllIp(),
+		})
 	})
 	logger.J.Infof("公网ip:%s", publicIp)
 
