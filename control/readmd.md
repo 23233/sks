@@ -2,8 +2,8 @@
 
 需求
 * 接受上线的终端
-* 均衡负载终端
+* 顺序依次让终端去执行
 
 环境变量
-* LOCK_DURATION_MS 设置client锁定时间 默认1000 即为1秒
+* LOCK_DURATION_MS 设置client锁定时间 默认1000 即为1秒 仅http读取时有效
   * 支持动态读改
