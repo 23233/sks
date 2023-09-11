@@ -55,8 +55,8 @@ jobs:
           for folder in $FOLDERS; do
             if [ "$GO_MOD_CHANGED" = true ] || echo "$DIFF_OUTPUT" | grep -q "^${folder}/"; then
               echo "Building and pushing image for folder: $folder on branch $CURRENT_BRANCH"
-              docker build -t $DOCKER_USERNAME/sk5_${folder}:${CURRENT_BRANCH} --build-arg APP_DIR=${folder} .
-              docker push $DOCKER_USERNAME/sk5_${folder}:${CURRENT_BRANCH}
+              docker build -t $DOCKER_USERNAME/sc_${folder}:${CURRENT_BRANCH} --build-arg APP_DIR=${folder} .
+              docker push $DOCKER_USERNAME/sc_${folder}:${CURRENT_BRANCH}
             fi
           done
  
