@@ -24,6 +24,8 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Check for changes in folders and build images
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           PREV_SHA=$(git rev-parse HEAD~1)
           CURRENT_SHA=$(git rev-parse HEAD)
@@ -38,7 +40,7 @@ jobs:
           
           for folder in $FOLDERS; do
             echo "Building and pushing image for folder: $folder"
-            docker build -t ***/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
-            docker push ***/sk5_${folder}:latest
+            docker build -t $DOCKER_USERNAME/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
+            docker push $DOCKER_USERNAME/sk5_${folder}:latest
           done
 
