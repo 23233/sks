@@ -3,7 +3,7 @@ name: Docker Publish
 on:
   push:
     branches:
-      - main  # 或者您使用的其他分支名
+      - netease_api_proxy  # 或者您使用的其他分支名
 
 jobs:
   docker:
@@ -49,8 +49,8 @@ jobs:
             # 如果当前文件夹有变更，或者 go.mod 有变更，则构建镜像
             if [ "$GO_MOD_CHANGED" = true ] || echo "$DIFF_OUTPUT" | grep -q "^${folder}/"; then
               echo "Building and pushing image for folder: $folder"
-              docker build -t $DOCKER_USERNAME/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
-              docker push $DOCKER_USERNAME/sk5_${folder}:latest
+              docker build -t $DOCKER_USERNAME/netease_${folder}:latest --build-arg APP_DIR=${folder} .
+              docker push $DOCKER_USERNAME/netease_${folder}:latest
             fi
           done
  

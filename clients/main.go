@@ -7,10 +7,8 @@ import (
 	"github.com/23233/ggg/ut"
 	"github.com/kataras/neffos"
 	"github.com/kataras/neffos/gobwas"
-	"github.com/txthinking/socks5"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -29,10 +27,19 @@ func getPublicIP() (string, error) {
 	return string(ip), nil
 }
 
-func connectWebsocket(publicIP, username, password, remoteAddr string) {
+func connectWebsocket() {
+	publicIP, err := getPublicIP()
+	if err != nil {
+		logger.J.ErrorE(err, "未获取到公网ip")
+		panic(err)
+	}
+	remoteAddr := ut.GetEnv("REMOTE_ADDR", "127.0.0.1")
+	localPort := "4666"
+	logger.J.Infof("连接:%s 公网ip:%s", remoteAddr, publicIP)
+	println(fmt.Sprintf("测试是否生效 curl -v http://%s:%s/search?keywords=海阔天空", publicIP, localPort))
 
 	// 构建WebSocket URL，包含公网IP、Socks5端口、用户名和密码
-	wsURL := fmt.Sprintf("ws://%s:3434/endpoint?ip=%s&port=3232&user=%s&pass=%s", remoteAddr, url.QueryEscape(publicIP), username, password)
+	wsURL := fmt.Sprintf("ws://%s:3636/endpoint?ip=%s&port=%s", remoteAddr, publicIP, localPort)
 
 	handler := neffos.WithTimeout{
 		ReadTimeout:  0,
@@ -72,29 +79,9 @@ func connectWebsocket(publicIP, username, password, remoteAddr string) {
 			break
 		}
 	}
-	connectWebsocket(publicIP, username, password, remoteAddr)
+	connectWebsocket()
 }
 
 func main() {
-	// 获取公网IP
-	publicIP, err := getPublicIP()
-	if err != nil {
-		logger.J.ErrorE(err, "未获取到公网ip")
-		panic(err)
-	}
-	remoteAddr := ut.GetEnv("REMOTE_ADDR", "127.0.0.1")
-	username := ut.RandomStr(6)
-	password := ut.RandomStr(6)
-	logger.J.Infof("连接:%s 公网ip:%s ss_name:%s ss_password:%s", remoteAddr, publicIP, username, password)
-	println(fmt.Sprintf("测试是否生效 curl -v -x socks5://%s:%s@%s:3232 http://api.ipify.org", username, password, publicIP))
-
-	// 创建 Socks5 代理服务器
-	socks5Server, err := socks5.NewClassicServer("0.0.0.0:3232", publicIP, username, password, 60, 60)
-	if err != nil {
-		logger.J.ErrorE(err, "代理服务器未能成功上线")
-		panic(err)
-	}
-	go socks5Server.ListenAndServe(nil)
-
-	connectWebsocket(publicIP, username, password, remoteAddr)
+	connectWebsocket()
 }
