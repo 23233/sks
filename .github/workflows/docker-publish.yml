@@ -22,7 +22,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
-  
+
       - name: Check for changes in folders and build images
         run: |
           PREV_SHA=$(git rev-parse HEAD~1)
@@ -33,7 +33,7 @@ jobs:
           DIFF_OUTPUT=$(git diff --name-only $PREV_SHA $CURRENT_SHA)
           echo "Diff output: $DIFF_OUTPUT"
           
-          FOLDERS=$(echo "$DIFF_OUTPUT" | grep '/$' | sed 's/\/$//')
+          FOLDERS=$(echo "$DIFF_OUTPUT" | grep -Eo '^[a-zA-Z0-9_-]+/' | sort -u | sed 's/\/$//')
           echo "Folders with changes: $FOLDERS"
           
           for folder in $FOLDERS; do
@@ -41,4 +41,4 @@ jobs:
             docker build -t ***/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
             docker push ***/sk5_${folder}:latest
           done
-    
+
