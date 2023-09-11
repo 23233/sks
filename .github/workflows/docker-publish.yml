@@ -25,17 +25,11 @@ jobs:
 
       - name: Check for changes in folders and build images
         run: |
-            PREV_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
-            CURRENT_SHA=$(git rev-parse HEAD)
-            
-            if [ -z "$PREV_SHA" ]; then
-            echo "This is the first commit, no previous commit to compare."
-            exit 0
-            fi
-            
-            FOLDERS=$(git diff --name-only $PREV_SHA $CURRENT_SHA | grep '/$' | sed 's/\/$//')
-            for folder in $FOLDERS; do
-            echo "Building and pushing image for folder: $folder"
-            docker build -t ***/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
-            docker push ***/sk5_${folder}:latest
-            done
+           PREV_SHA=$(git rev-parse HEAD~1)
+           CURRENT_SHA=$(git rev-parse HEAD)
+           FOLDERS=$(git diff --name-only $PREV_SHA $CURRENT_SHA | grep '/$' | sed 's/\/$//')
+           for folder in $FOLDERS; do
+             echo "Building and pushing image for folder: $folder"
+             docker build -t ***/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
+             docker push ***/sk5_${folder}:latest
+           done
