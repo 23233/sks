@@ -24,9 +24,11 @@ jobs:
 
       - name: Check for changes in folders and build images
         run: |
-          FOLDERS=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '/$' | sed 's/\/$//')
+          PREV_SHA=$(git rev-parse HEAD~1)
+          CURRENT_SHA=$(git rev-parse HEAD)
+          FOLDERS=$(git diff --name-only $PREV_SHA $CURRENT_SHA | grep '/$' | sed 's/\/$//')
           for folder in $FOLDERS; do
             echo "Building and pushing image for folder: $folder"
-            docker build -t 23233/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
-            docker push 23233/sk5_${folder}:latest
+            docker build -t ***/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
+            docker push ***/sk5_${folder}:latest
           done
