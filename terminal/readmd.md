@@ -6,4 +6,4 @@
   * websocket 连接到中控
   * 持续发送ping -> pong
 
-需要设置环境变量 `REMOTE_ADDR` 为中控的地址 必须设置
+需要设置环境变量 `REMOTE_ADDR` 为中控的地址 必须设置!
