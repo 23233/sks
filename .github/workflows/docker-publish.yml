@@ -35,12 +35,23 @@ jobs:
           DIFF_OUTPUT=$(git diff --name-only $PREV_SHA $CURRENT_SHA)
           echo "Diff output: $DIFF_OUTPUT"
           
+          # 检查 go.mod 是否有变更
+          GO_MOD_CHANGED=false
+          if echo "$DIFF_OUTPUT" | grep -q '^go\.mod$'; then
+            echo "go.mod has changed."
+            GO_MOD_CHANGED=true
+          fi
+          
           FOLDERS=$(echo "$DIFF_OUTPUT" | grep -Eo '^[a-zA-Z0-9_-]+/' | sort -u | sed 's/\/$//')
           echo "Folders with changes: $FOLDERS"
           
           for folder in $FOLDERS; do
-            echo "Building and pushing image for folder: $folder"
-            docker build -t $DOCKER_USERNAME/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
-            docker push $DOCKER_USERNAME/sk5_${folder}:latest
+            # 如果当前文件夹有变更，或者 go.mod 有变更，则构建镜像
+            if [ "$GO_MOD_CHANGED" = true ] || echo "$DIFF_OUTPUT" | grep -q "^${folder}/"; then
+              echo "Building and pushing image for folder: $folder"
+              docker build -t $DOCKER_USERNAME/sk5_${folder}:latest --build-arg APP_DIR=${folder} .
+              docker push $DOCKER_USERNAME/sk5_${folder}:latest
+            fi
           done
+ 
 
