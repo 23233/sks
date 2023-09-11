@@ -3,7 +3,7 @@ name: Docker Publish
 on:
   push:
     branches:
-      - netease_api_proxy  # 或者您使用的其他分支名
+      - '*'
 
 jobs:
   docker:
